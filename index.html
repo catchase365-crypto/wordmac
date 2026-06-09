@@ -2517,6 +2517,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         tTargetElement = null;
     }, { passive: false });
+
+    // 新增：盲打模式区域的鼠标右键（PC或长按模拟）点击查词，与回车查词逻辑完全复用、对齐
+    typingCard.addEventListener('contextmenu', (e) => {
+        const textContainer = document.getElementById('typingTextContainer');
+        if (!textContainer || !typingTargetText) return;
+
+        // 只有当右键点击在打字文本容器内部或其子元素 spans 上时才触发
+        if (e.target.classList.contains('t-char') || textContainer.contains(e.target)) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            let pos = 0;
+            if (e.target.classList.contains('t-char')) {
+                // 如果直接精准右键点击在某个字符 span 上，获取该字符在全文的索引位置
+                const spans = Array.from(textContainer.querySelectorAll('.t-char'));
+                const idx = spans.indexOf(e.target);
+                if (idx !== -1) pos = idx;
+            } else {
+                // 如果点击在容器空白处，则根据光标点从坐标推算字符位置
+                if (document.caretRangeFromPoint) {
+                    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                    if (range && range.startContainer.parentNode.classList.contains('t-char')) {
+                        const spans = Array.from(textContainer.querySelectorAll('.t-char'));
+                        const idx = spans.indexOf(range.startContainer.parentNode);
+                        if (idx !== -1) pos = idx;
+                    }
+                }
+            }
+
+            // 执行与回车完全一致的动态智能测词探针逻辑
+            let start = pos;
+            if (start >= typingTargetText.length || !/[a-zA-Z]/.test(typingTargetText[start])) {
+                start = pos - 1;
+            }
+            if (start >= 0 && !/[a-zA-Z]/.test(typingTargetText[start])) {
+                start--;
+            }
+            if (start < 0 || start >= typingTargetText.length) return;
+
+            let left = start;
+            while (left > 0 && /[a-zA-Z0-9'\-]/.test(typingTargetText[left - 1])) {
+                left--;
+            }
+            let right = start;
+            while (right < typingTargetText.length && /[a-zA-Z0-9'\-]/.test(typingTargetText[right])) {
+                right++;
+            }
+
+            let word = typingTargetText.substring(left, right);
+            if (word && window.callEudic) {
+                window.getSelection().removeAllRanges();
+                window.callEudic(word);
+                setTimeout(focusTypingInput, 300);
+            }
+        }
+    });
 });
 
 function handleTypingInput() {
