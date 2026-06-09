@@ -2404,12 +2404,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 let pos = hiddenInput.value.length;
                 let target = typingTargetText;
                 
-                // 从当前光标向右找第一个字母（如果是空格则自动找下一个词）
+                // 如果光标当前位置刚好是字母（比如停在下一个单词的首字母），直接从当前位置查词
+                // 否则（比如光标在空格、标点上），才往前退一位查找上一个单词，精准避免回退过多
                 let start = pos;
-                while (start < target.length && !/[a-zA-Z]/.test(target[start])) {
-                    start++;
+                if (start >= target.length || !/[a-zA-Z]/.test(target[start])) {
+                    start = pos - 1;
                 }
-                if (start >= target.length) return;
+                if (start >= 0 && !/[a-zA-Z]/.test(target[start])) {
+                    start--;
+                }
+                if (start < 0 || start >= target.length) return;
                 
                 // 向左扩展找词头
                 let left = start;
